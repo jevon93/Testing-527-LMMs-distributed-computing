@@ -1,0 +1,1055 @@
+---
+title: "50-strap CV LMM's"
+output: html_document
+---
+	##############################
+	## all code in 1 R script...
+	
+	## set working directory and load data
+	
+conditionx <- "Analysis v6 October 2017 (comparison logistic vs LMM)"
+agegroup <- "15-34"
+setwd(paste0("U:/Tuson Project Folder/H - MH hotness predictions/",conditionx,"/Prediction/",agegroup))
+source(file="U:/Tuson Project Folder/commonCode/loadPackages_common.R")
+load(file="Data/R workspaces/metropolitan/load1 (metro).RData")
+source(file="U:/Tuson Project Folder/Db - grattan report analysis (paper v13)/Rfunctions (new data v13).R")
+
+	## define some variables
+	
+logdsr_sa2_sum <- log(alldatax$dsr_sa2_sum/alldatax$dsr_state_sum)
+logdsr_sa2_sum[which(!is.finite(logdsr_sa2_sum))] <- 1
+alldatax$logdsr_sa2_sum <- logdsr_sa2_sum
+alldatax.orig <- alldatax	
+
+	## try to reduce some of the variables a little
+	
+head(alldatax)
+alldatax.orig <- alldatax
+alldatax <- alldatax.orig[,c(
+	"year","sa2_name11",
+	"metro_irsad","metro_irsd","metro_ier","metro_ieo",
+	# "propatsi.new",
+	# "propagecat4to92","propagecat8to92",
+	"propgendermale2",
+	"ed_nd_km.new",
+	"gp_nd_km.new", ## "gpidx_pct"
+	"mhis_nd_km.new",
+	"hot","hotback","hotback2",
+	# outcomedef,
+	# "propagecat4to92sq","propagecat8to92sq",
+	# "region.num",
+	"hotback_metro_irsad","hotback_metro_irsd","hotback_metro_ier","hotback_metro_ieo",
+	"hotback2_metro_irsad","hotback2_metro_irsd","hotback2_metro_ier","hotback2_metro_ieo",
+	"ed_nd_km.new_metro_irsad","ed_nd_km.new_metro_irsd","ed_nd_km.new_metro_ier","ed_nd_km.new_metro_ieo", "logdsr_sa2_sum")]
+
+	########################################
+	## construct the model matrix...
+		
+X <- alldatax[,c(
+	"hotback","hotback2",
+	"metro_irsad","metro_irsd","metro_ier","metro_ieo",
+	# "region.num",
+	# "propatsi.new",
+	"propgendermale2",
+	# "propagecat4to92","propagecat4to92sq","propagecat8to92","propagecat8to92sq",
+	"hotback_metro_irsad","hotback_metro_irsd","hotback_metro_ier","hotback_metro_ieo",
+	"hotback2_metro_irsad","hotback2_metro_irsd","hotback2_metro_ier","hotback2_metro_ieo",
+	"ed_nd_km.new",
+	"gp_nd_km.new", ## gpidx_pct
+	"mhis_nd_km.new",
+	"ed_nd_km.new_metro_irsad","ed_nd_km.new_metro_irsd","ed_nd_km.new_metro_ier","ed_nd_km.new_metro_ieo")]
+	
+	## set back covariates in future years as appropriate
+	
+alldatax <- alldatax[order(alldatax$sa2_name11,alldatax$year),]
+
+	
+	
+	## hotback and hotback2
+	
+with(alldatax,table(year,hotback))
+for (i in unique(alldatax$sa2_name11)) { 
+	alldatax$hotback[alldatax$year %in% 2011:my.fullyrrange[length(my.fullyrrange)] & alldatax$sa2_name11 == i] <- alldatax$hotback[alldatax$year == 2010 & alldatax$sa2_name11 == i]
+}
+with(alldatax,table(year,hotback))
+
+with(alldatax,table(year,hotback2))
+for (i in unique(alldatax$sa2_name11)) { 
+	alldatax$hotback2[alldatax$year %in% 2011:my.fullyrrange[length(my.fullyrrange)] & alldatax$sa2_name11 == i] <- alldatax$hotback2[alldatax$year == 2010 & alldatax$sa2_name11 == i]
+}
+with(alldatax,table(year,hotback2))
+
+
+
+	## SEIFA variables (no change, we keep these as they are our current best projections)
+	
+# with(alldatax,table(year,metro_irsad))
+# for (i in unique(alldatax$sa2_name11)) { 
+	# alldatax$metro_irsad[alldatax$year %in% 2011:my.fullyrrange[length(my.fullyrrange)] & alldatax$sa2_name11 == i] <- alldatax$metro_irsad[alldatax$year == 2010 & alldatax$sa2_name11 == i]
+# }
+# with(alldatax,table(year,metro_irsad))
+
+# with(alldatax,table(year,metro_irsd))
+# for (i in unique(alldatax$sa2_name11)) { 
+	# alldatax$metro_irsd[alldatax$year %in% 2011:my.fullyrrange[length(my.fullyrrange)] & alldatax$sa2_name11 == i] <- alldatax$metro_irsd[alldatax$year == 2010 & alldatax$sa2_name11 == i]
+# }
+# with(alldatax,table(year,metro_irsd))
+
+# with(alldatax,table(year,metro_ier))
+# for (i in unique(alldatax$sa2_name11)) { 
+	# alldatax$metro_ier[alldatax$year %in% 2011:my.fullyrrange[length(my.fullyrrange)] & alldatax$sa2_name11 == i] <- alldatax$metro_ier[alldatax$year == 2010 & alldatax$sa2_name11 == i]
+# }
+# with(alldatax,table(year,metro_ier))
+
+# with(alldatax,table(year,metro_ieo))
+# for (i in unique(alldatax$sa2_name11)) { 
+	# alldatax$metro_ieo[alldatax$year %in% 2011:my.fullyrrange[length(my.fullyrrange)] & alldatax$sa2_name11 == i] <- alldatax$metro_ieo[alldatax$year == 2010 & alldatax$sa2_name11 == i]
+# }
+# with(alldatax,table(year,metro_ieo))
+
+
+
+	## propgendermale2 (no change, we keep these as they are our current best projections)
+	
+# with(alldatax,tapply(propgendermale2,year,mean))
+# for (i in unique(alldatax$sa2_name11)) { 
+	# alldatax$propgendermale2[alldatax$year %in% 2011:my.fullyrrange[length(my.fullyrrange)] & alldatax$sa2_name11 == i] <- alldatax$propgendermale2[alldatax$year == 2010 & alldatax$sa2_name11 == i]
+# }
+# with(alldatax,tapply(propgendermale2,year,mean))
+
+
+
+	## accessibility variables (change these, since we cannot project accessibility into the future)
+	
+with(alldatax,tapply(gp_nd_km.new,year,mean))
+for (i in unique(alldatax$sa2_name11)) { 
+	alldatax$gp_nd_km.new[alldatax$year %in% 2011:my.fullyrrange[length(my.fullyrrange)] & alldatax$sa2_name11 == i] <- alldatax$gp_nd_km.new[alldatax$year == 2010 & alldatax$sa2_name11 == i]
+}
+with(alldatax,tapply(gp_nd_km.new,year,mean))
+
+with(alldatax,tapply(mhis_nd_km.new,year,mean))
+for (i in unique(alldatax$sa2_name11)) { 
+	alldatax$mhis_nd_km.new[alldatax$year %in% 2011:my.fullyrrange[length(my.fullyrrange)] & alldatax$sa2_name11 == i] <- alldatax$mhis_nd_km.new[alldatax$year == 2010 & alldatax$sa2_name11 == i]
+}
+with(alldatax,tapply(mhis_nd_km.new,year,mean))
+
+with(alldatax,tapply(ed_nd_km.new,year,mean))
+for (i in unique(alldatax$sa2_name11)) { 
+	alldatax$ed_nd_km.new[alldatax$year %in% 2011:my.fullyrrange[length(my.fullyrrange)] & alldatax$sa2_name11 == i] <- alldatax$ed_nd_km.new[alldatax$year == 2010 & alldatax$sa2_name11 == i]
+}
+with(alldatax,tapply(ed_nd_km.new,year,mean))
+
+
+
+	## interaction terms
+	
+	
+	
+	## hotback and SEIFA (recalculate these using the projected SEIFA variables (unchanged) and the adjusted hotback variables (changed)
+	
+with(alldatax,tapply(hotback_metro_irsad,year,mean))
+for (i in unique(alldatax$sa2_name11)) { 
+	alldatax$hotback_metro_irsad[alldatax$year %in% 2011:my.fullyrrange[length(my.fullyrrange)] & alldatax$sa2_name11 == i] <- 
+		alldatax$hotback[alldatax$year %in% 2011:my.fullyrrange[length(my.fullyrrange)] & alldatax$sa2_name11 == i] * 
+		alldatax$metro_irsad[alldatax$year %in% 2011:my.fullyrrange[length(my.fullyrrange)] & alldatax$sa2_name11 == i]
+}
+with(alldatax,tapply(hotback_metro_irsad,year,mean))
+
+with(alldatax,tapply(hotback_metro_irsd,year,mean))
+for (i in unique(alldatax$sa2_name11)) { 
+	alldatax$hotback_metro_irsd[alldatax$year %in% 2011:my.fullyrrange[length(my.fullyrrange)] & alldatax$sa2_name11 == i] <- 
+		alldatax$hotback[alldatax$year %in% 2011:my.fullyrrange[length(my.fullyrrange)] & alldatax$sa2_name11 == i] * 
+		alldatax$metro_irsd[alldatax$year %in% 2011:my.fullyrrange[length(my.fullyrrange)] & alldatax$sa2_name11 == i]
+}
+with(alldatax,tapply(hotback_metro_irsd,year,mean))
+
+with(alldatax,tapply(hotback_metro_ier,year,mean))
+for (i in unique(alldatax$sa2_name11)) { 
+	alldatax$hotback_metro_ier[alldatax$year %in% 2011:my.fullyrrange[length(my.fullyrrange)] & alldatax$sa2_name11 == i] <- 
+		alldatax$hotback[alldatax$year %in% 2011:my.fullyrrange[length(my.fullyrrange)] & alldatax$sa2_name11 == i] * 
+		alldatax$metro_ier[alldatax$year %in% 2011:my.fullyrrange[length(my.fullyrrange)] & alldatax$sa2_name11 == i]
+}
+with(alldatax,tapply(hotback_metro_ier,year,mean))
+
+with(alldatax,tapply(hotback_metro_ieo,year,mean))
+for (i in unique(alldatax$sa2_name11)) { 
+	alldatax$hotback_metro_ieo[alldatax$year %in% 2011:my.fullyrrange[length(my.fullyrrange)] & alldatax$sa2_name11 == i] <- 
+		alldatax$hotback[alldatax$year %in% 2011:my.fullyrrange[length(my.fullyrrange)] & alldatax$sa2_name11 == i] * 
+		alldatax$metro_ieo[alldatax$year %in% 2011:my.fullyrrange[length(my.fullyrrange)] & alldatax$sa2_name11 == i]
+}
+with(alldatax,tapply(hotback_metro_ieo,year,mean))
+
+
+
+	## hotback2 and SEIFA (same as above, recalculate now)
+	
+with(alldatax,tapply(hotback2_metro_irsad,year,mean))
+for (i in unique(alldatax$sa2_name11)) { 
+	alldatax$hotback2_metro_irsad[alldatax$year %in% 2011:my.fullyrrange[length(my.fullyrrange)] & alldatax$sa2_name11 == i] <- 
+		alldatax$hotback2[alldatax$year %in% 2011:my.fullyrrange[length(my.fullyrrange)] & alldatax$sa2_name11 == i] * 
+		alldatax$metro_irsad[alldatax$year %in% 2011:my.fullyrrange[length(my.fullyrrange)] & alldatax$sa2_name11 == i]
+}
+with(alldatax,tapply(hotback2_metro_irsad,year,mean))
+
+with(alldatax,tapply(hotback2_metro_irsd,year,mean))
+for (i in unique(alldatax$sa2_name11)) { 
+	alldatax$hotback2_metro_irsd[alldatax$year %in% 2011:my.fullyrrange[length(my.fullyrrange)] & alldatax$sa2_name11 == i] <- 
+		alldatax$hotback2[alldatax$year %in% 2011:my.fullyrrange[length(my.fullyrrange)] & alldatax$sa2_name11 == i] * 
+		alldatax$metro_irsd[alldatax$year %in% 2011:my.fullyrrange[length(my.fullyrrange)] & alldatax$sa2_name11 == i]
+}
+with(alldatax,tapply(hotback2_metro_irsd,year,mean))
+
+with(alldatax,tapply(hotback2_metro_ier,year,mean))
+for (i in unique(alldatax$sa2_name11)) { 
+	alldatax$hotback2_metro_ier[alldatax$year %in% 2011:my.fullyrrange[length(my.fullyrrange)] & alldatax$sa2_name11 == i] <- 
+		alldatax$hotback2[alldatax$year %in% 2011:my.fullyrrange[length(my.fullyrrange)] & alldatax$sa2_name11 == i] * 
+		alldatax$metro_ier[alldatax$year %in% 2011:my.fullyrrange[length(my.fullyrrange)] & alldatax$sa2_name11 == i]
+}
+with(alldatax,tapply(hotback2_metro_ier,year,mean))
+
+with(alldatax,tapply(hotback2_metro_ieo,year,mean))
+for (i in unique(alldatax$sa2_name11)) { 
+	alldatax$hotback2_metro_ieo[alldatax$year %in% 2011:my.fullyrrange[length(my.fullyrrange)] & alldatax$sa2_name11 == i] <- 
+		alldatax$hotback2[alldatax$year %in% 2011:my.fullyrrange[length(my.fullyrrange)] & alldatax$sa2_name11 == i] * 
+		alldatax$metro_ieo[alldatax$year %in% 2011:my.fullyrrange[length(my.fullyrrange)] & alldatax$sa2_name11 == i]
+}
+with(alldatax,tapply(hotback2_metro_ieo,year,mean))
+
+
+
+	## ed_nd_km.new and SEIFA (recalculate these since we have changed the accessibility variables)
+	
+with(alldatax,tapply(ed_nd_km.new_metro_irsad,year,mean))
+for (i in unique(alldatax$sa2_name11)) { 
+	alldatax$ed_nd_km.new_metro_irsad[alldatax$year %in% 2011:my.fullyrrange[length(my.fullyrrange)] & alldatax$sa2_name11 == i] <- 
+		alldatax$ed_nd_km.new[alldatax$year %in% 2011:my.fullyrrange[length(my.fullyrrange)] & alldatax$sa2_name11 == i] * 
+		alldatax$metro_irsad[alldatax$year %in% 2011:my.fullyrrange[length(my.fullyrrange)] & alldatax$sa2_name11 == i]
+}
+with(alldatax,tapply(ed_nd_km.new_metro_irsad,year,mean))
+
+with(alldatax,tapply(ed_nd_km.new_metro_irsd,year,mean))
+for (i in unique(alldatax$sa2_name11)) { 
+	alldatax$ed_nd_km.new_metro_irsd[alldatax$year %in% 2011:my.fullyrrange[length(my.fullyrrange)] & alldatax$sa2_name11 == i] <- 
+		alldatax$ed_nd_km.new[alldatax$year %in% 2011:my.fullyrrange[length(my.fullyrrange)] & alldatax$sa2_name11 == i] * 
+		alldatax$metro_irsd[alldatax$year %in% 2011:my.fullyrrange[length(my.fullyrrange)] & alldatax$sa2_name11 == i]
+}
+with(alldatax,tapply(ed_nd_km.new_metro_irsd,year,mean))
+
+with(alldatax,tapply(ed_nd_km.new_metro_ier,year,mean))
+for (i in unique(alldatax$sa2_name11)) { 
+	alldatax$ed_nd_km.new_metro_ier[alldatax$year %in% 2011:my.fullyrrange[length(my.fullyrrange)] & alldatax$sa2_name11 == i] <- 
+		alldatax$ed_nd_km.new[alldatax$year %in% 2011:my.fullyrrange[length(my.fullyrrange)] & alldatax$sa2_name11 == i] * 
+		alldatax$metro_ier[alldatax$year %in% 2011:my.fullyrrange[length(my.fullyrrange)] & alldatax$sa2_name11 == i]
+}
+with(alldatax,tapply(ed_nd_km.new_metro_ier,year,mean))
+
+with(alldatax,tapply(ed_nd_km.new_metro_ieo,year,mean))
+for (i in unique(alldatax$sa2_name11)) { 
+	alldatax$ed_nd_km.new_metro_ieo[alldatax$year %in% 2011:my.fullyrrange[length(my.fullyrrange)] & alldatax$sa2_name11 == i] <- 
+		alldatax$ed_nd_km.new[alldatax$year %in% 2011:my.fullyrrange[length(my.fullyrrange)] & alldatax$sa2_name11 == i] * 
+		alldatax$metro_ieo[alldatax$year %in% 2011:my.fullyrrange[length(my.fullyrrange)] & alldatax$sa2_name11 == i]
+}
+with(alldatax,tapply(ed_nd_km.new_metro_ieo,year,mean))
+
+
+
+	## now contruct models.list
+
+A.n = ASM(ncol(X)) ## because we have ncol(X) covariates in total; and the ASM functions adds a column for the intercept by itself...
+head(A.n)
+nrow(A.n)
+
+A.nx <- A.n
+colnames(A.nx) <-c("int",colnames(X))
+head(A.nx)
+
+# agecat4to92sq <- (A.n[,10]==1) & (A.n[,9] < 1)
+# agecat8to92sq <- (A.n[,12]==1) & (A.n[,11] < 1)
+
+hotbackirsad <- (A.nx[,"hotback_metro_irsad"]==1) & (A.nx[,"hotback"] + A.nx[,"metro_irsad"] < 2)
+hotbackirsd <- (A.nx[,"hotback_metro_irsd"]==1) & (A.nx[,"hotback"] + A.nx[,"metro_irsd"] < 2)
+hotbackier <- (A.nx[,"hotback_metro_ier"]==1) & (A.nx[,"hotback"] + A.nx[,"metro_ier"] < 2)
+hotbackieo <- (A.nx[,"hotback_metro_ieo"]==1) & (A.nx[,"hotback"] + A.nx[,"metro_ieo"] < 2)
+
+hotback2irsad <- (A.nx[,"hotback2_metro_irsad"]==1) & (A.nx[,"hotback2"] + A.nx[,"metro_irsad"] < 2)
+hotback2irsd <- (A.nx[,"hotback2_metro_irsd"]==1) & (A.nx[,"hotback2"] + A.nx[,"metro_irsd"] < 2)
+hotback2ier <- (A.nx[,"hotback2_metro_ier"]==1) & (A.nx[,"hotback2"] + A.nx[,"metro_ier"] < 2)
+hotback2ieo <- (A.nx[,"hotback2_metro_ieo"]==1) & (A.nx[,"hotback2"] + A.nx[,"metro_ieo"] < 2)
+
+seifa1only <- rowSums(A.nx[,c("metro_irsad","metro_irsd","metro_ier","metro_ieo")]) > 1
+# gpaccess1only <- rowSums(A.nx[,16:17]) > 1
+
+edaccessirsad <- (A.nx[,"ed_nd_km.new_metro_irsad"]==1) & (A.nx[,"metro_irsad"] + A.nx[,"ed_nd_km.new"] < 2)
+edaccessirsd <- (A.nx[,"ed_nd_km.new_metro_irsd"]==1) & (A.nx[,"metro_irsd"] + A.nx[,"ed_nd_km.new"] < 2)
+edaccessier <- (A.nx[,"ed_nd_km.new_metro_ier"]==1) & (A.nx[,"metro_ier"] + A.nx[,"ed_nd_km.new"] < 2)
+edaccessieo <- (A.nx[,"ed_nd_km.new_metro_ieo"]==1) & (A.nx[,"metro_ieo"] + A.nx[,"ed_nd_km.new"] < 2)
+
+hotback1only <- rowSums(A.nx[,c("hotback","hotback2")]) > 1
+
+	##
+
+int.i <- 
+	# agecat4to92sq | agecat8to92sq | 
+	hotbackirsad | hotbackirsd | hotbackier | hotbackieo | 
+	hotback2irsad | hotback2irsd | hotback2ier | hotback2ieo | 
+	seifa1only | 
+	# gpaccess1only | 
+	edaccessirsad | edaccessirsd | edaccessier | edaccessieo | 
+	hotback1only
+table(int.i)
+
+	########################################
+	## additional exclusion: restrict the maximum number of variables allowed to 5
+	
+int.i.modsizeRestrict <- (rowSums(A.n[,2:ncol(A.n)]) > 100)
+int.i <- int.i | int.i.modsizeRestrict
+table(int.i)
+	
+	## end additional restriction...
+	########################
+
+A.n2 <- A.n[!int.i,]
+nrow(A.n2)
+
+	## remove the intercept only model
+	
+A.n2 <- A.n2[-1,]
+nrow(A.n2)
+
+	## construct a list of model formulae...
+	## NOTE: because we have manually removed the intercept-only model above, the if() statement in the loop below is unnecessary***
+	
+models.list <- list()
+	
+for (i in 1:nrow(A.n2)) {
+
+	if (sum(A.n2[i,])==1) {
+		models.list[[i]] <- formula("logdsr_sa2_sum ~ 1")
+	} else {
+		models.list[[i]] <- formula(paste0("logdsr_sa2_sum ~ ",paste(colnames(X)[as.logical(A.n2[i,2:ncol(A.n2)])],collapse=" + ")))
+	}
+	
+}
+
+
+
+	################################
+	## create datasets
+	
+set.seed(1)
+
+num.repeats <- 50
+	
+train.data <- list()
+test.data <- list()	
+
+for (k in 1:num.repeats) { 
+
+	print(k); flush.console()
+	
+	alldataxnew <- alldatax[order(alldatax$sa2_name11),]
+	
+	alldataxnew$runif1 <- rep(runif(length(unique(alldataxnew$sa2_name11))),each = length(unique(alldataxnew$year)))
+	
+	alldataxnew <- alldataxnew[order(alldataxnew$runif1),]
+	
+	group1 <- alldataxnew[1:392,]
+	group2 <- alldataxnew[393:784,]
+	group3 <- alldataxnew[785:1176,]
+	group4 <- alldataxnew[1177:1568,]
+	group5 <- alldataxnew[1569:1974,]
+	
+	traintemps <- list()
+	testtemps <- list()
+	
+	for (i in 1:5) {
+	
+		traintemp <- do.call(rbind,lapply(as.list(paste0("group",(1:5)[1:5 != i])),get))
+		traintemps[[i]] <- traintemp[traintemp$year <= 2010,]
+		
+		testtemp <- get(paste0("group",i))
+		testtemps[[i]] <- testtemp[testtemp$year > 2012,]
+		
+	}
+	
+	train.data[[k]] <- traintemps
+	test.data[[k]] <- testtemps
+
+}
+
+
+
+	#################################
+	## model fitting and evaluation
+	
+	####################################
+	## script to fit models to folds, withing repeats...
+
+	## run through model list (l)
+
+my.logfile <- "Output/progressFiles/test.txt"
+writeLines("",my.logfile)
+
+registerDoParallel(clus <- makeCluster(64))
+
+try1 <- foreach(
+	 l = 1:length(models.list),
+	 .packages = c("nlme","foreach", "doParallel"),
+	 .export = c("models.list","train.data","test.data","my.logfile","num.repeats")) %dopar% {
+	 
+	 cat(paste0("\n",l),
+		file=my.logfile,
+		append=TRUE)
+	 
+	 temp.list2 <- list()
+	 
+	 for (k in 1:num.repeats) { 
+	 
+		print(k)
+	 
+		temp.list1 <- list()
+		for (i in 1:5){
+		
+			# temp.list1[[i]] <- lme(models.list[[l]], random = ~I(year-2002)|sa2_name11, data=train.data[[k]][[i]])
+			temp.list1[[i]] <- lme(models.list[[l]], random = ~I(year-2002)|sa2_name11, data=train.data[[k]][[i]],control=lmeControl(opt = "optim"))
+		
+		} ## end loop through folds (i)
+		temp.list2[[k]] <- temp.list1
+
+	} ## end loop through repeats (k)
+	
+	return(temp.list2)
+	
+} ## end loop through models (l)
+
+stopCluster(clus)
+	
+	
+	
+	
+	
+	## extract data (num tps, fps, etc...)
+	## NOTE: need to do this across a grid of 'widths' of prediction interval (say 0.25 to 2.25)
+	
+(intwidth.seq <- seq(from = 0.7, to = 1.6, by = 0.3))
+
+try3 <- list()
+
+for (tempint in intwidth.seq) {
+
+	print(paste0("pred interval: ",tempint))
+	
+	try2 <- list()		
+	for (l in 1:length(models.list)) {
+
+		print(l); flush.console()
+		
+		tests.temp2 <- list()
+		for (k in 1:num.repeats){
+				
+			testdatas.temp.2015 <- testdatas.temp.2014 <- testdatas.temp.2013 <- testdatas.temp.all <- matrix(NA,5,4)
+			for (i in 1:5) {
+								   
+				x <- try1[[l]][[k]][[i]]
+							
+					## 2015
+				
+				tempdata <- test.data[[k]][[i]]
+				tempdata <- tempdata[tempdata$year == 2015,]
+					
+				temp.logrrprediction <- predict(x, newdata=tempdata,level=0)
+				temp.Designmat <- model.matrix(eval(eval(x$call$fixed)[-2]), tempdata)
+				temp.predvar <- diag(temp.Designmat %*% x$varFix %*% t(temp.Designmat))
+			
+				temp.se <- sqrt(temp.predvar)
+				temp.se2 <- sqrt(temp.predvar + x$sigma^2)
+				temp.lowerconfband <- temp.logrrprediction - tempint * temp.se2 ## note: use tempint here... (defines width of prediction interval)
+				temp.predicthot <- ifelse(temp.lowerconfband > 0, 1, 0)
+				temp.result <- 
+					ifelse(tempdata$hot == 1 & temp.predicthot == 1, 1, 
+						ifelse(tempdata$hot == 0 & temp.predicthot == 1, 2, 
+							ifelse(tempdata$hot == 1 & temp.predicthot == 0, 3,
+								ifelse(tempdata$hot == 0 & temp.predicthot == 0, 4, NA))))
+								
+				temp.tp <- length(temp.result[temp.result == 1])
+				temp.fp <- length(temp.result[temp.result == 2])
+				temp.fn <- length(temp.result[temp.result == 3])
+				temp.tn <- length(temp.result[temp.result == 4])
+				
+				testdatas.temp.2015[i,] <- c(temp.tp,temp.fp,temp.fn,temp.tn)
+				
+					## 2014
+			
+				# tempdata <- test.data[[k]][[i]]
+				# tempdata <- tempdata[tempdata$year == 2014,]
+					
+				# temp.logrrprediction <- predict(x, newdata=tempdata,level=0)
+				# temp.Designmat <- model.matrix(eval(eval(x$call$fixed)[-2]), tempdata)
+				# temp.predvar <- diag(temp.Designmat %*% x$varFix %*% t(temp.Designmat))
+			
+				# temp.se <- sqrt(temp.predvar)
+				# temp.se2 <- sqrt(temp.predvar + x$sigma^2)
+				# temp.lowerconfband <- temp.logrrprediction - tempint * temp.se2 ## note: use tempint here... (defines width of prediction interval)
+				# temp.predicthot <- ifelse(temp.lowerconfband > 0, 1, 0)
+				# temp.result <- 
+					# ifelse(tempdata$hot == 1 & temp.predicthot == 1, 1, 
+						# ifelse(tempdata$hot == 0 & temp.predicthot == 1, 2, 
+							# ifelse(tempdata$hot == 1 & temp.predicthot == 0, 3,
+								# ifelse(tempdata$hot == 0 & temp.predicthot == 0, 4, NA))))
+								
+				# temp.tp <- length(temp.result[temp.result == 1])
+				# temp.fp <- length(temp.result[temp.result == 2])
+				# temp.fn <- length(temp.result[temp.result == 3])
+				# temp.tn <- length(temp.result[temp.result == 4])
+				
+				# testdatas.temp.2014[i,] <- c(temp.tp,temp.fp,temp.fn,temp.tn)
+				
+					## 2013
+				
+				# tempdata <- test.data[[k]][[i]]
+				# tempdata <- tempdata[tempdata$year == 2013,]
+					
+				# temp.logrrprediction <- predict(x, newdata=tempdata,level=0)
+				# temp.Designmat <- model.matrix(eval(eval(x$call$fixed)[-2]), tempdata)
+				# temp.predvar <- diag(temp.Designmat %*% x$varFix %*% t(temp.Designmat))
+			
+				# temp.se <- sqrt(temp.predvar)
+				# temp.se2 <- sqrt(temp.predvar + x$sigma^2)
+				# temp.lowerconfband <- temp.logrrprediction - tempint * temp.se2 ## note: use tempint here... (defines width of prediction interval)
+				# temp.predicthot <- ifelse(temp.lowerconfband > 0, 1, 0)
+				
+				# temp.result <- 
+					# ifelse(tempdata$hot == 1 & temp.predicthot == 1, 1, 
+						# ifelse(tempdata$hot == 0 & temp.predicthot == 1, 2, 
+							# ifelse(tempdata$hot == 1 & temp.predicthot == 0, 3,
+								# ifelse(tempdata$hot == 0 & temp.predicthot == 0, 4, NA))))
+								
+				# temp.tp <- length(temp.result[temp.result == 1])
+				# temp.fp <- length(temp.result[temp.result == 2])
+				# temp.fn <- length(temp.result[temp.result == 3])
+				# temp.tn <- length(temp.result[temp.result == 4])
+				
+				# testdatas.temp.2013[i,] <- c(temp.tp,temp.fp,temp.fn,temp.tn)
+				
+					## all years
+				
+				# tempdata <- test.data[[k]][[i]]
+					
+				# temp.logrrprediction <- predict(x, newdata=tempdata,level=0)
+				# temp.Designmat <- model.matrix(eval(eval(x$call$fixed)[-2]), tempdata)
+				# temp.predvar <- diag(temp.Designmat %*% x$varFix %*% t(temp.Designmat))
+			
+				# temp.se <- sqrt(temp.predvar)
+				# temp.se2 <- sqrt(temp.predvar + x$sigma^2)
+				# temp.lowerconfband <- temp.logrrprediction - tempint * temp.se2 ## note: use tempint here... (defines width of prediction interval)
+				# temp.predicthot <- ifelse(temp.lowerconfband > 0, 1, 0)
+				
+				# temp.predicthot.allyears <- ifelse(with(data.frame(sa2_name11 = tempdata$sa2_name11,predicthot = temp.predicthot),tapply(predicthot,sa2_name11,sum)) == 3, 1, 0)
+				# temp.actualhot.allyears <- ifelse(with(tempdata,tapply(hot,sa2_name11,sum)) == 3, 1, 0)
+				
+				# temp.df <- data.frame(
+					# predicthot = temp.predicthot.allyears,
+					# hot = temp.actualhot.allyears)
+				
+				# temp.result <- 
+					# ifelse(temp.df$hot == 1 & temp.df$predicthot == 1, 1, 
+						# ifelse(temp.df$hot == 0 & temp.df$predicthot == 1, 2, 
+							# ifelse(temp.df$hot == 1 & temp.df$predicthot == 0, 3,
+								# ifelse(temp.df$hot == 0 & temp.df$predicthot == 0, 4, NA))))
+								
+				# temp.tp <- length(temp.result[temp.result == 1])
+				# temp.fp <- length(temp.result[temp.result == 2])
+				# temp.fn <- length(temp.result[temp.result == 3])
+				# temp.tn <- length(temp.result[temp.result == 4])
+				
+				# testdatas.temp.all[i,] <- c(temp.tp,temp.fp,temp.fn,temp.tn)
+				
+			} ## end loop through folds (i)
+			tests.temp2[[k]] <- testdatas.temp.2015
+			
+		} ## end loop through repeats (k)
+		try2[[l]] <- tests.temp2
+		
+	} ## end loop through models
+	
+
+
+
+		## 2. now we have a list of length 50 (repeats) for each model (1 to 527)
+		## calculate:
+		## a) PPV, sensitivity for each repeat, for each model
+		## b) PPV, sensitivity for each model (single estimate, pooling TPs etc across all 50 repeats)
+		
+		## a) 
+		
+	estimates.a.list <- lapply(try2,function(x) { 
+		lapply(x, function(xx) { 
+			temp.sum.tp <- sum(xx[,1])
+			temp.sum.fp <- sum(xx[,2])
+			temp.sum.fn <- sum(xx[,3])
+			temp.sum.tn <- sum(xx[,4])
+			
+			temp.ppv <- temp.sum.tp/(temp.sum.tp + temp.sum.fp)
+			temp.sens <- temp.sum.tp/(temp.sum.tp + temp.sum.fn)
+			
+			return(list(
+				"ppv" = temp.ppv,
+				"sens" = temp.sens))
+		})
+	})
+
+	ppv.list <- lapply(estimates.a.list,function(x) {
+		sapply(x,function(xx) { 
+			xx$ppv
+		})
+	})
+
+	sens.list <- lapply(estimates.a.list,function(x) { 
+		sapply(x,function(xx) { 
+			xx$sens
+		})
+	})
+
+		## b)
+		
+	estimates.b.list <- lapply(try2,function(x) {
+
+		temp.rbind <- do.call(rbind,x)
+		
+		temp.sum.tp <- sum(temp.rbind[,1])
+		temp.sum.fp <- sum(temp.rbind[,2])
+		temp.sum.fn <- sum(temp.rbind[,3])
+		temp.sum.tn <- sum(temp.rbind[,4])
+		
+		temp.ppv <- temp.sum.tp/(temp.sum.tp + temp.sum.fp)
+		temp.sens <- temp.sum.tp/(temp.sum.tp + temp.sum.fn)
+		
+		return(list(
+			"ppv" = temp.ppv,
+			"sens" = temp.sens))
+	})
+
+		## 3. now we have the mean estimate of PPV and sensitivity for each model (estimates.b.list)
+		## ...and also the distribution from which we will construct confidence intervals (using quantiles) (estimates.a.list)
+		## so put them together for each model
+		
+	final.list <- list()
+
+	for (l in 1:length(models.list)) { 
+
+		temp.meanestimate.ppv <- estimates.b.list[[l]]$ppv
+		temp.meanestimate.sens <- estimates.b.list[[l]]$sens
+		
+		if (!any(is.na(sapply(estimates.a.list[[l]],function(x) x$ppv)))) {
+			temp.band.ppv <- quantile(sapply(estimates.a.list[[l]],function(x) x$ppv),probs = c(0.025,0.975))
+		} else {
+			abc <- sapply(estimates.a.list[[l]],function(x) x$ppv)
+			abc[is.na(abc)] <- 0
+			temp.band.ppv <- quantile(abc,probs = c(0.025,0.975))
+		}
+		temp.band.sens <- quantile(sapply(estimates.a.list[[l]],function(x) x$sens),probs = c(0.025,0.975))
+		
+		final.list[[l]] <- list(
+			"ppv" = c(temp.meanestimate.ppv,temp.band.ppv),
+			"sens" = c(temp.meanestimate.sens,temp.band.sens))
+			
+	}
+
+		## concat together for plotting
+		
+	toplot.ppv <- data.frame(do.call(rbind,lapply(final.list,function(x) {
+		x$ppv
+	})))
+	colnames(toplot.ppv) <- c("est","lcl2_5","ucl97_5")
+		
+	toplot.sens <- data.frame(do.call(rbind,lapply(final.list,function(x) {
+		x$sens
+	})))
+	colnames(toplot.sens) <- c("est","lcl2_5","ucl97_5")	
+	
+	
+	
+		## loop through a grid of potential minimum sensitivity thresholds...
+	
+	(minsens.seq <- seq(from = 0.3, to = 0.5, by = 0.05))
+		
+	toplot.list <- list()	
+	for (tempsens in minsens.seq) { 
+
+		(mods.ok <- rownames(toplot.sens[toplot.sens[,"lcl2_5"] > tempsens,]))
+		
+		toplot.sens.small <- toplot.sens[mods.ok,]
+		toplot.ppv.small <- toplot.ppv[mods.ok,]
+		
+		toplot.sens.small2 <- toplot.sens.small[!is.na(toplot.ppv.small$est),]
+		toplot.ppv.small2 <- toplot.ppv.small[!is.na(toplot.ppv.small$est),]
+		
+		(optmod.id <- rownames(toplot.ppv.small2[toplot.ppv.small2$est == max(toplot.ppv.small2$est),]))
+		(optmod.id <- optmod.id[toplot.sens$est[as.numeric(optmod.id)] == max(toplot.sens$est[as.numeric(optmod.id)])])
+		(optmod.id <- optmod.id[1]) ## if still multiple IDs even after maximising PPV and then maximising sensitivity, then simply choose first model
+		
+		(optmod.sens <- toplot.sens[as.numeric(optmod.id),])
+		(optmod.ppv <- toplot.ppv[as.numeric(optmod.id),])
+		
+		toplot.list[[match(tempsens,minsens.seq)]] <- list(
+			"toplot.sens.small" = toplot.sens.small,
+			"toplot.ppv.small" = toplot.ppv.small,
+			"optmod.id" = optmod.id,
+			"optmod.sens" = optmod.sens,
+			"optmod.ppv" = optmod.ppv)
+			
+	}
+	
+		## save
+	
+	try3[[match(tempint,intwidth.seq)]] <- list(
+		"try2" = try2,
+		"estimates.a.list" = estimates.a.list,
+		"ppv.list" = ppv.list,
+		"sens.list" = sens.list,
+		"estimates.b.list" = estimates.b.list,
+		"final.list" = final.list,
+		"toplot.ppv" = toplot.ppv,
+		"toplot.sens" = toplot.sens,
+		"toplot.list" = toplot.list)
+
+} ## end loop through interval widths (tempint)
+	
+	
+	###########################
+	## plot 1: extract data for ALL models
+	## NOTE: unlike when we were using logistic regression, we don't get a new dot-plot for each new sensitivity threshold
+	## there is only 1 dotplot!
+	
+	## BUT, we do get a new dotplot for each new prediction band...
+	
+dat2 <- lapply(try3,function(x) { 
+	out.sens <- x$toplot.sens$est
+	out.ppv <- x$toplot.ppv$est
+	
+	return(rbind(out.sens,out.ppv))
+})
+
+par(mfrow = c(3,4),mar = c(4,4,1,1))
+
+plot(
+	dat2[[5]]["out.sens",],
+	dat2[[5]]["out.ppv",],
+	pch = 20,
+	xlim = c(0,1),
+	ylim = c(0,1),
+	xlab = "Sensitivity",
+	ylab = "PPV",
+	col=ifelse(dat2[[5]]["out.ppv",]>0.8 & dat2[[5]]["out.sens",]>0.4 , "red", "black"))
+abline(v=0.4)
+text(x = mean(par("usr")[1:2]),y = par("usr")[3] + 0.1 * (par("usr")[4] - par("usr")[3]), labels = paste0("band width:\n",intwidth.seq[5]," * SE"))
+
+for (tempint in intwidth.seq[2:length(intwidth.seq)]) { 
+	
+	plot(
+		dat2[[match(tempint,intwidth.seq)]]["out.sens",],
+		dat2[[match(tempint,intwidth.seq)]]["out.ppv",],
+		pch = 20,
+		xlim = c(0,1),
+		ylim = c(0,1),
+		xlab = "Sensitivity",
+		ylab = "PPV")
+	abline(v=0.4)
+	text(x = mean(par("usr")[1:2]),y = par("usr")[3] + 0.1 * (par("usr")[4] - par("usr")[3]), labels = paste0("band width:\n",intwidth.seq[match(tempint,intwidth.seq)]," * SE"))
+	
+}
+		
+	
+	
+	#########################
+	## plot 2: extract data for optimal at each sensitivity threshold, at each prediction width
+	## plot a line showing sensitivity vs PPV for optimal models, one line for each prediction band width
+	
+dat1 <- lapply(try3,function(x) { 
+	out.sens <- sapply(x$toplot.list,function(xx) { 
+		xx$optmod.sens$est
+	})
+	out.ppv <- sapply(x$toplot.list,function(xx) {
+		xx$optmod.ppv$est
+	})
+	return(rbind(out.sens,out.ppv))
+})
+	
+plot(
+	minsens.seq,
+	dat1[[5]]["out.ppv",],
+	type = "l",
+	xlim = c(0,1),
+	ylim = c(0,1),
+	xlab = "Sensitivity",
+	ylab = "PPV")
+	
+for (tempint in intwidth.seq[2:length(intwidth.seq)]) { 
+
+	lines(
+		minsens.seq,
+		dat1[[match(tempint,intwidth.seq)]]["out.ppv",])
+		
+}
+
+
+
+	#############################
+	## get data for 2016-17 to 2018-19
+	
+library(foreign)
+
+fdata <- read.dta(file = "Data/final9 (metro, 2016to2020).dta")
+
+fdata <- fdata[fdata$sa2_name11 %in% alldatax$sa2_name11,]
+	
+	## centering for the propgendermale variable
+	## NOTE: this must be done by year***
+
+	## first, turn into a percentage
+	
+fdata$propgendermale <- fdata$propgendermale*100
+	
+(gendermean.df <- data.frame(gendermean = with(fdata,tapply(propgendermale,year,mean))))
+gendermean.df$year <- rownames(gendermean.df)
+rownames(gendermean.df) <- 1:nrow(gendermean.df)
+gendermean.df$year <- as.numeric(gendermean.df$year)
+
+fdata.temp <- merge(
+	fdata,
+	gendermean.df,
+	by = "year",
+	all.x = TRUE)
+fdata.temp$propgendermale2 <- fdata.temp$propgendermale - fdata.temp$gendermean
+
+dim(fdata)
+dim(fdata.temp)
+fdata <- fdata.temp
+
+
+	## now fix up the other variables...
+	
+	## hotback and hotback2
+	
+fdata <- fdata[order(fdata$sa2_name11,fdata$year),]	
+alldatax.orig <- alldatax.orig[order(alldatax.orig$sa2_name11,alldatax.orig$year),]
+	
+fdata$hotback <- rep(alldatax.orig$hotback[alldatax.orig$year == 2015],each = 3)
+fdata$hotback2 <- rep(alldatax.orig$hotback2[alldatax.orig$year == 2015],each = 3)
+
+	## accessibility
+	
+with(alldatax.orig,tapply(gp_nd_km.new,year,mean))
+for (i in unique(alldatax.orig$sa2_name11)) { 
+	fdata$gp_nd_km.new[fdata$year %in% 2016:2020 & fdata$sa2_name11 == i] <- alldatax.orig$gp_nd_km.new[alldatax.orig$year == 2015 & alldatax.orig$sa2_name11 == i]
+}
+with(fdata,tapply(gp_nd_km.new,year,mean))
+
+with(alldatax.orig,tapply(mhis_nd_km.new,year,mean))
+for (i in unique(alldatax.orig$sa2_name11)) { 
+	fdata$mhis_nd_km.new[fdata$year %in% 2016:2020 & fdata$sa2_name11 == i] <- alldatax.orig$mhis_nd_km.new[alldatax.orig$year == 2015 & alldatax.orig$sa2_name11 == i]
+}
+with(fdata,tapply(mhis_nd_km.new,year,mean))
+
+with(alldatax.orig,tapply(ed_nd_km.new,year,mean))
+for (i in unique(alldatax.orig$sa2_name11)) { 
+	fdata$ed_nd_km.new[fdata$year %in% 2016:2020 & fdata$sa2_name11 == i] <- alldatax.orig$ed_nd_km.new[alldatax.orig$year == 2015 & alldatax.orig$sa2_name11 == i]
+}
+with(fdata,tapply(ed_nd_km.new,year,mean))
+	
+	
+		## hotback and SEIFA interactions
+	
+with(alldatax.orig,tapply(hotback_metro_irsad,year,mean))
+for (i in unique(alldatax.orig$sa2_name11)) { 
+	fdata$hotback_metro_irsad[fdata$year %in% 2016:2020 & fdata$sa2_name11 == i] <- 
+		fdata$hotback[fdata$year %in% 2016:2020 & fdata$sa2_name11 == i] * 
+		fdata$metro_irsad[fdata$year %in% 2016:2020 & fdata$sa2_name11 == i]
+}
+with(fdata,tapply(hotback_metro_irsad,year,mean))
+
+with(alldatax.orig,tapply(hotback_metro_irsd,year,mean))
+for (i in unique(alldatax.orig$sa2_name11)) { 
+	fdata$hotback_metro_irsd[fdata$year %in% 2016:2020 & fdata$sa2_name11 == i] <- 
+		fdata$hotback[fdata$year %in% 2016:2020 & fdata$sa2_name11 == i] * 
+		fdata$metro_irsd[fdata$year %in% 2016:2020 & fdata$sa2_name11 == i]
+}
+with(fdata,tapply(hotback_metro_irsd,year,mean))
+
+with(alldatax.orig,tapply(hotback_metro_ier,year,mean))
+for (i in unique(alldatax.orig$sa2_name11)) { 
+	fdata$hotback_metro_ier[fdata$year %in% 2016:2020 & fdata$sa2_name11 == i] <- 
+		fdata$hotback[fdata$year %in% 2016:2020 & fdata$sa2_name11 == i] * 
+		fdata$metro_ier[fdata$year %in% 2016:2020 & fdata$sa2_name11 == i]
+}
+with(fdata,tapply(hotback_metro_ier,year,mean))
+
+with(alldatax.orig,tapply(hotback_metro_ieo,year,mean))
+for (i in unique(alldatax.orig$sa2_name11)) { 
+	fdata$hotback_metro_ieo[fdata$year %in% 2016:2020 & fdata$sa2_name11 == i] <- 
+		fdata$hotback[fdata$year %in% 2016:2020 & fdata$sa2_name11 == i] * 
+		fdata$metro_ieo[fdata$year %in% 2016:2020 & fdata$sa2_name11 == i]
+}
+with(fdata,tapply(hotback_metro_ieo,year,mean))	
+
+		## hotback2 and SEIFA interactions
+	
+with(alldatax.orig,tapply(hotback2_metro_irsad,year,mean))
+for (i in unique(alldatax.orig$sa2_name11)) { 
+	fdata$hotback2_metro_irsad[fdata$year %in% 2016:2020 & fdata$sa2_name11 == i] <- 
+		fdata$hotback2[fdata$year %in% 2016:2020 & fdata$sa2_name11 == i] * 
+		fdata$metro_irsad[fdata$year %in% 2016:2020 & fdata$sa2_name11 == i]
+}
+with(fdata,tapply(hotback2_metro_irsad,year,mean))
+
+with(alldatax.orig,tapply(hotback2_metro_irsd,year,mean))
+for (i in unique(alldatax.orig$sa2_name11)) { 
+	fdata$hotback2_metro_irsd[fdata$year %in% 2016:2020 & fdata$sa2_name11 == i] <- 
+		fdata$hotback2[fdata$year %in% 2016:2020 & fdata$sa2_name11 == i] * 
+		fdata$metro_irsd[fdata$year %in% 2016:2020 & fdata$sa2_name11 == i]
+}
+with(fdata,tapply(hotback2_metro_irsd,year,mean))
+
+with(alldatax.orig,tapply(hotback2_metro_ier,year,mean))
+for (i in unique(alldatax.orig$sa2_name11)) { 
+	fdata$hotback2_metro_ier[fdata$year %in% 2016:2020 & fdata$sa2_name11 == i] <- 
+		fdata$hotback2[fdata$year %in% 2016:2020 & fdata$sa2_name11 == i] * 
+		fdata$metro_ier[fdata$year %in% 2016:2020 & fdata$sa2_name11 == i]
+}
+with(fdata,tapply(hotback2_metro_ier,year,mean))
+
+with(alldatax.orig,tapply(hotback2_metro_ieo,year,mean))
+for (i in unique(alldatax.orig$sa2_name11)) { 
+	fdata$hotback2_metro_ieo[fdata$year %in% 2016:2020 & fdata$sa2_name11 == i] <- 
+		fdata$hotback2[fdata$year %in% 2016:2020 & fdata$sa2_name11 == i] * 
+		fdata$metro_ieo[fdata$year %in% 2016:2020 & fdata$sa2_name11 == i]
+}
+with(fdata,tapply(hotback2_metro_ieo,year,mean))	
+
+
+
+
+
+	## ed_nd_km.new and SEIFA interactions
+	
+with(alldatax.orig,tapply(ed_nd_km.new_metro_irsad,year,mean))
+for (i in unique(alldatax.orig$sa2_name11)) { 
+	alldatax.orig$ed_nd_km.new_metro_irsad[alldatax.orig$year %in% 2016:2020 & alldatax.orig$sa2_name11 == i] <- 
+		alldatax.orig$ed_nd_km.new[alldatax.orig$year %in% 2016:2020 & alldatax.orig$sa2_name11 == i] * 
+		alldatax.orig$metro_irsad[alldatax.orig$year %in% 2016:2020 & alldatax.orig$sa2_name11 == i]
+}
+with(alldatax.orig,tapply(ed_nd_km.new_metro_irsad,year,mean))
+
+with(alldatax.orig,tapply(ed_nd_km.new_metro_irsd,year,mean))
+for (i in unique(alldatax.orig$sa2_name11)) { 
+	fdata$ed_nd_km.new_metro_irsd[fdata$year %in% 2016:2020 & fdata$sa2_name11 == i] <- 
+		fdata$ed_nd_km.new[fdata$year %in% 2016:2020 & fdata$sa2_name11 == i] * 
+		fdata$metro_irsd[fdata$year %in% 2016:2020 & fdata$sa2_name11 == i]
+}
+with(fdata,tapply(ed_nd_km.new_metro_irsd,year,mean))
+
+with(alldatax.orig,tapply(ed_nd_km.new_metro_ier,year,mean))
+for (i in unique(alldatax.orig$sa2_name11)) { 
+	fdata$ed_nd_km.new_metro_ier[fdata$year %in% 2016:2020 & fdata$sa2_name11 == i] <- 
+		fdata$ed_nd_km.new[fdata$year %in% 2016:2020 & fdata$sa2_name11 == i] * 
+		fdata$metro_ier[fdata$year %in% 2016:2020 & fdata$sa2_name11 == i]
+}
+with(fdata,tapply(ed_nd_km.new_metro_ier,year,mean))
+
+with(alldatax.orig,tapply(ed_nd_km.new_metro_ieo,year,mean))
+for (i in unique(alldatax.orig$sa2_name11)) { 
+	fdata$ed_nd_km.new_metro_ieo[fdata$year %in% 2016:2020 & fdata$sa2_name11 == i] <- 
+		fdata$ed_nd_km.new[fdata$year %in% 2016:2020 & fdata$sa2_name11 == i] * 
+		fdata$metro_ieo[fdata$year %in% 2016:2020 & fdata$sa2_name11 == i]
+}
+with(fdata,tapply(ed_nd_km.new_metro_ieo,year,mean))
+	
+
+
+	## example: Yanchep
+	
+alldatax.orig[alldatax.orig$sa2_name11 == "Yanchep" & alldatax.orig$year %in% 2012:2015,]
+fdata[fdata$sa2_name11 == "Yanchep",]
+	
+	
+	
+	## save
+	
+save(list=ls(all = TRUE), file = "Data/R workspaces/load3 (metro, LMM).RData")
+	
+	
+	
+	
+
+	##################################################
+
+# elmc1a <- do.call(rbind,elmc1)
+# confbands<- list()
+# for (i in 1:527){
+	# confbands[[i]] <- c((elmc1a[i,1] - (1.96*ppvsd[[i]])), (elmc1a[i,1] + (1.96*ppvsd[[i]])), (elmc1a[i,2] - (1.96*senssd[[i]])), (elmc1a[i,2] + (1.96*senssd[[i]]))) }
+	
+	# confs <- do.call(rbind,confbands)
+	
+	# df1<- data.frame(elmc1a[,1], elmc1a[,2],confs[,1],confs[,2],confs[,3],confs[,4])
+	# names(df1) <- c("ppv","sens","lowerppv","upperppv","lowersens","uppersens")
+	
+	# ggplot(df1) + geom_line(aes(y=ppv, x=sens, colour = "sin"))+
+    # geom_ribbon(aes(ymin=lowerppv, ymax=upperppv, x=x, fill = "band"), alpha = 0.3)+
+    # scale_colour_manual("",values="blue")+
+    # scale_fill_manual("",values="grey12")
+	
+	
+	##Predict for specific year
+	
+	tempdata <- fdata[fdata$year == 2018,]
+	x<- lme(models.list[[320]], random = ~I(year-2002)|sa2_name11, data=alldatax.orig)			
+				temp.logrrprediction <- predict(x, newdata=tempdata,level=0)
+				temp.Designmat <- model.matrix(eval(eval(x$call$fixed)[-2]), tempdata)
+				temp.predvar <- diag(temp.Designmat %*% x$varFix %*% t(temp.Designmat))
+			
+				temp.se <- sqrt(temp.predvar)
+				temp.se2 <- sqrt(temp.predvar + x$sigma^2)
+				temp.lowerconfband <- temp.logrrprediction - 1.6 * temp.se2 ## note: use tempint here... (defines width of prediction interval)
+				temp.predicthot <- ifelse(temp.lowerconfband > 0, 1, 0)
+				
+				
+				
+				
+	tempdata$predicthot <- temp.predicthot
+	tempdata[tempdata$predicthot==1,c(2,28)]
+### Edit this to create maps
+	
+	load(file="Q:/commonData/mapData/Data/R workspaces/allSAs_v2 (wa only).RData")
+
+par(mfrow=c(1,1))
+plot(shape2.wa)
+
+	## 
+	
+myyear <- 2015
+	
+colregions.wa <- rep("white",length(shape2.wa@data$SA2_NAME11))
+colregions.wa[match(unique(alldatax$sa2_name11[alldatax$year==myyear & alldatax$hot==1]),shape2.wa@data$SA2_NAME11)] <- "red"
+
+colregions.wametro <- rep("white",length(shape2.wametro@data$SA2_NAME11))
+colregions.wametro[match(unique(alldatax$sa2_name11[alldatax$year==myyear & alldatax$hot==1]),shape2.wametro@data$SA2_NAME11)] <- "red"
+
+legend.font <- rep(1,length(alldatax$sa2_name11[alldatax$year==myyear & alldatax$hot==1]))
+legend.font[match(
+	alldatax$sa2_name11[alldatax$year==myyear & alldatax$hot==1 & alldatax$region=="metro"],
+	alldatax$sa2_name11[alldatax$year==myyear & alldatax$hot==1])] <- 2
+
+par(mfrow=c(1,3))
+
+plot(
+	shape2.wametro,
+	col = colregions.wametro)	
+plot.new()
+legend(
+	x = "center",
+	legend = unique(alldatax$sa2_name11[alldatax$year==myyear & alldatax$hot==1]),
+	ncol = 2,
+	xpd = NA,
+	text.font = legend.font,
+	cex=1)
+
