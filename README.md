@@ -1,5 +1,4 @@
-# 50-Bootstrap-Cross-Validation-for-Predicting-Mental-Health-Emergency-Department-Presenation-Rates
-Some code for our our linear-mixed-model predictions using LMM's
+# Monte Carlo Cross-Validations
 
 This code demonstrates how to use Monte Carlo Cross Validation, which cuts the data into random segments a large number of times and then cross-validates them against each other to make accurate predictions.
 
