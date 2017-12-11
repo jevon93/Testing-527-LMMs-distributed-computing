@@ -6,13 +6,6 @@ output: html_document
 	## all code in 1 R script...
 	
 	## set working directory and load data
-	
-conditionx <- "Analysis v6 October 2017 (comparison logistic vs LMM)"
-agegroup <- "15-34"
-setwd(paste0("U:/Tuson Project Folder/H - MH hotness predictions/",conditionx,"/Prediction/",agegroup))
-source(file="U:/Tuson Project Folder/commonCode/loadPackages_common.R")
-load(file="Data/R workspaces/metropolitan/load1 (metro).RData")
-source(file="U:/Tuson Project Folder/Db - grattan report analysis (paper v13)/Rfunctions (new data v13).R")
 
 	## define some variables
 	
