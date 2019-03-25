@@ -1,2 +1,8 @@
-# Monte Carlo Cross-Validations
-This code was developed in order to test 527 possible linear models for predicting mental health emergencies across the state of WA. A cluster core of 100 was used to compute. 20-page academic paper detailing process, methods and result available upon request.
+# Predicting Mental Health Emergency Rates
+This code party developed by me and partly by my associate who was working on his PhD at the time working on forecasting emergency rates in Western Australia for a range of hospital codes. The code I developed on my own is in the second half of the 50 bootstrap CV.Rmd file where we use a nested loop in order to run model cross-validation across the hospitals 100-core computer cluster in paralell. Most of the data cleaning and geographic visualisation code was done by my colleague and tweaked by me in the end to suit the purpose of identifying 'hot' high risk suburbs which we expected to have high mental health emergency rates in the future.
+
+We had 20+ variables included in the data supplied to us by the hospital as well as a number of engineered features and we needed to test every possible combination in order to come up with an optimal forecast model, which resulted in 50 cross validations run on a total of 527 models. This large number of loops and model comparisons required us to use a paralell structure when running the code in the interest of time.
+
+The optimal linear-mixed model uses training data from the years 2005-2014 in order to predict the final 3 years of data between 2014-2017. The test set is split by geographic area, so essentially we are using 4/5 of the suburbs data between 2005-2014 to predict the remaining suburbs emergency rates between 2015-2017 in order to prevent data leakage and have a truly un-biased model positive predictive value and sensitivity.
+
+The final optimal model achieved a PPV of 80% at a 50% sensitivity threshhold, mirroring logistic model peformance and providing additional information (as the final rate predicted was an accurate rate of emergency department use and not a 1/0 for above average/not above average emergency rates.
